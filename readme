@@ -21,8 +21,13 @@ you give it a bunch of rtsps urls, it gives you a web interface to
 view them and a directory of mp4s. and that's it.  there are no
 more features.
 
-it uses pion package to speak webrtc, and shells out to ffmpeg to
-encode mp4s.
+it uses the pion go package to speak webrtc, and shells out to
+ffmpeg to encode mp4s. i recently found out it's a similar approach
+to brad fitzpatrick's hack described in his 2016 lightning talk
+https://www.youtube.com/watch?v=4yFb-b5GYWc. i had no recollection
+of that talk before writing this, but i was at that conference so
+i'm convinced that that's where i learned this trick, and that it
+sat dormant in my subconscious for ~5 years.
 
 things it does not and will not do:
 

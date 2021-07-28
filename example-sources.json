@@ -1,0 +1,11 @@
+{
+	"sources": {
+		"cam1": {
+			"url": "rtsp://10.0.0.101/stream",
+			"record": true,
+			"motion": 1.5
+		},
+		"cam2": {
+			"url": "rtsp://10.0.0.102/stream",
+		}
+}

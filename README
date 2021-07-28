@@ -1,0 +1,40 @@
+dnvr - dumb network video recorder
+
+nvr systems out there seem to be either free and bad, or expensive
+and also bad. this one is bad too but at least i hacked most of it
+together myself.
+
+suppose you have a bunch of ip cameras that speak rtsp. suppose
+that you:
+
+- want to stream them in real time to a web browser
+
+- want to record the videos to disk, optionally triggered by (bad)
+motion detection
+
+- are not desperate enough to just give up on it all and get a ring
+camera
+
+then maybe this cursed thing is for you. but it's probably not.
+
+you give it a bunch of rtsps urls, it gives you a web interface to
+view them and a directory of mp4s. and that's it.  there are no
+more features.
+
+it uses pion package to speak webrtc, and shells out to ffmpeg to
+encode mp4s.
+
+things it does not and will not do:
+
+- fancy motion detection: if it doesn't work for you maybe use a
+proper nvr?
+
+- authentication or authorization: if you want that use a proxy,
+or wireguard, or tailscale, or whatever.
+
+- alerts or notifications: i don't need them, so i'm not writing
+any code for them. if you need alerts this package is not for you.
+
+- stream videos in mjpeg or hls
+
+- remove old recorded videos. clean them up with a cron job.

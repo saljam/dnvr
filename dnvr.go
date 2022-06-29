@@ -531,7 +531,7 @@ func (c *camera) startRecording(ctx context.Context, duration time.Duration) {
 
 	name, err := c.newRecordingFilename()
 	if err != nil {
-		log.Println("could not start recording %v in %v: %v", name, outDir, err)
+		log.Printf("could not start recording %v in %v: %v", name, outDir, err)
 		c.record = io.Discard
 		return
 	}
@@ -552,14 +552,14 @@ func (c *camera) startRecording(ctx context.Context, duration time.Duration) {
 	)...)
 	ffpipe, err := cmd.StdinPipe()
 	if err != nil {
-		log.Println("could not start recording %v: %v", name, err)
+		log.Printf("could not start recording %v: %v", name, err)
 		// If we got here something is messed up - ffmpeg is broken or
 		c.record = io.Discard
 		return
 	}
 	err = cmd.Start()
 	if err != nil {
-		log.Println("could not start recording %v: %v", name, err)
+		log.Printf("could not start recording %v: %v", name, err)
 		c.record = io.Discard
 		return
 	}
@@ -577,7 +577,7 @@ func (c *camera) startRecording(ctx context.Context, duration time.Duration) {
 		go func() { time.Sleep(5 * time.Second); cancel() }()
 		err := cmd.Wait()
 		if err != nil {
-			log.Println("error finishing recording %v: %v", name, err)
+			log.Printf("error finishing recording %v: %v", name, err)
 			c.record = io.Discard
 		}
 	}()
@@ -691,6 +691,7 @@ func (c *camera) readRTSP(ctx context.Context) {
 
 func main() {
 	httpaddr := flag.String("http", ":http", "http listen address")
+	rtspaddr := flag.String("rtsp", ":rtsp", "rtsp listen address")
 	configpath := flag.String("config", "./sources.json", "path to config file")
 	ffmpegcmd := flag.String("ffmpeg", "ffmpeg", "command line to run ffmpeg")
 	flag.BoolVar(&debug, "debug", false, "debug mode")
@@ -734,5 +735,13 @@ func main() {
 	}
 
 	http.Handle("/", http.HandlerFunc(serve))
-	log.Fatal(http.ListenAndServe(*httpaddr, nil))
+	go func() {
+		log.Fatal(http.ListenAndServe(*httpaddr, nil))
+	}()
+
+	go func() {
+		log.Fatal(rtspProxyListenAndServe(*rtspaddr))
+	}()
+
+	select {}
 }

@@ -66,6 +66,7 @@ type camera struct {
 
 var index = template.Must(template.New("index").Parse(`
 <!doctype html>
+<html dir="auto">
 <meta charset=utf-8>
 <style>
 body {
@@ -176,7 +177,7 @@ function addVideo(id) {
 	v.setAttribute("playsinline", ""); 
 	v.autoplay = true;
 	v.muted = true;
-	v.controls = false;
+	v.controls = true;
 
 	let div = document.createElement("div");
 	div.id = id;
@@ -244,7 +245,7 @@ function main() {
 
 document.addEventListener("DOMContentLoaded", main);
 </script>
-<body dir="auto">
+<body>
 `))
 
 func answer(w http.ResponseWriter, r *http.Request) {

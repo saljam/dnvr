@@ -1,6 +1,6 @@
 // Command dnvr is a dumb nvr.
 //
-// go run . -config out.json -ffmpeg "docker exec -i toolbox ffmpeg" -debug
+// go run . -config sources.json -ffmpeg "docker exec -i toolbox ffmpeg" -debug
 package main
 
 import (
@@ -155,10 +155,15 @@ function handleDragOver(e) {
 async function connect(id, pc) {
 	let offer = await pc.createOffer();
 	pc.setLocalDescription(offer);
+	console.log(id + " offer: ");
+	console.log(offer.sdp);
 	// TODO use template string once this is out of the go source file.
 	let res = await fetch('/'+id, {method: 'post', body: JSON.stringify(offer)});
 	let answer = await res.json();
-	pc.setRemoteDescription(answer);
+	await pc.setRemoteDescription(answer);
+	console.log(id + " answer: ");
+	console.log(answer.sdp);
+	await pc.addIceCandidate(null);
 }
 
 function addVideo(id) {
@@ -185,6 +190,7 @@ function addVideo(id) {
 	document.body.appendChild(div);
 
 	pc.oniceconnectionstatechange = () => {
+		console.log(id + ": " + pc.iceConnectionState)
 		if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
 			div.classList.add("online");
 			div.classList.remove("offline");
@@ -313,6 +319,7 @@ func serve(w http.ResponseWriter, r *http.Request) {
 			ids = append(ids, k)
 		}
 		index.Execute(w, ids)
+		log.Printf("%s	%s	%s\n", r.RemoteAddr, r.Method, r.URL)
 	case http.MethodPost:
 		answer(w, r)
 	default:
@@ -393,7 +400,12 @@ func (c *camera) runffmpeg(ctx context.Context) error {
 		}
 		go io.Copy(os.Stderr, fferr)
 	}
-	return cmd.Start()
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+	go cmd.Wait()
+	return nil
 }
 
 func (c *camera) dumpFrame(buf []byte, filename string) error {
@@ -413,7 +425,7 @@ func (c *camera) dumpFrame(buf []byte, filename string) error {
 	return f.Close()
 }
 
-func (c *camera) detectMotion(ctx context.Context) {
+func (c *camera) detectMotion(ctx context.Context, r io.Reader) {
 	buf := make([]byte, 320*240*1)
 	prev := make([]byte, 320*240*1)
 	movingFrames := 0
@@ -424,7 +436,7 @@ func (c *camera) detectMotion(ctx context.Context) {
 		default:
 		}
 
-		_, err := io.ReadFull(c.ffout, buf)
+		_, err := io.ReadFull(r, buf)
 		if err != nil {
 			log.Printf("motion: could not read frame pixels: %v", err)
 			return
@@ -560,13 +572,13 @@ func (c *camera) stream(ctx context.Context) {
 				}
 			} else {
 				suppresserrors = false
-				go c.detectMotion(ctx)
+				go c.detectMotion(ctx, c.ffout)
 			}
 		}
 
 		c.readRTSP(ctx)
 		cancel()
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 	}
 }
 

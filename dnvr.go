@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,6 +40,7 @@ var (
 			URL    string
 			Record bool
 			Motion float64
+			ACL    []netip.Prefix
 		}
 	}{}
 )
@@ -52,10 +54,10 @@ type camera struct {
 	ffin      io.Writer
 	ffout     io.Reader
 	threshold float64 // TODO it would be nice to "autotune" this.
+	acl       []netip.Prefix
 
 	// object lock protects concurrent access to all three following
-	// properties. they're independent, so we can easily split the
-	// lock into 3, but meh.
+	// fields. they are independent.
 	sync.RWMutex
 	record       io.Writer
 	datachannels []*webrtc.DataChannel
@@ -253,6 +255,10 @@ func answer(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
+	if !c.addrAllowed(r.RemoteAddr) {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
 
 	var offer webrtc.SessionDescription
 	err := json.NewDecoder(r.Body).Decode(&offer)
@@ -310,13 +316,33 @@ func answer(w http.ResponseWriter, r *http.Request) {
 	w.Write(buf)
 }
 
+func (c *camera) addrAllowed(addr string) bool {
+	if len(c.acl) == 0 {
+		return true
+	}
+	ap, err := netip.ParseAddrPort(addr)
+	if err != nil {
+		log.Printf("could not check against acl: %v", err)
+		return false
+	}
+	for _, prefix := range c.acl {
+		if prefix.Contains(ap.Addr()) {
+			return true
+		}
+	}
+	log.Printf("addr %v not in acl %v", ap.Addr(), c.acl)
+	return false
+}
+
 func serve(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodHead:
 	case http.MethodGet:
 		var ids []string
-		for k := range cameras {
-			ids = append(ids, k)
+		for id, c := range cameras {
+			if c.addrAllowed(r.RemoteAddr) {
+				ids = append(ids, id)
+			}
 		}
 		index.Execute(w, ids)
 		log.Printf("%s	%s	%s\n", r.RemoteAddr, r.Method, r.URL)
@@ -694,6 +720,7 @@ func main() {
 			src:       src.URL,
 			track:     track,
 			threshold: src.Motion,
+			acl:       src.ACL,
 		}
 
 		if src.Record {
